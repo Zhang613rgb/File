@@ -111,3 +111,7 @@ if __name__ == "__main__":
     # 打印结果到控制台
     for line in results:
         logging.info(line)
+        
+with open('jav.txt', 'w') as f:
+    f.write('javdb:\t' + str(_get_javdb_urls()) + '\n')
+    f.write('javlib:\t' + str(_get_javlib_urls()) + '\n')
