@@ -1,11 +1,12 @@
-"""获取各个网站的免代理地址"""
 import os
 import re
 import sys
+import logging
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from web.base import *
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_proxy_free_url(site_name: str, prefer_url=None) -> str:
     """获取指定网站的免代理地址
@@ -17,7 +18,7 @@ def get_proxy_free_url(site_name: str, prefer_url=None) -> str:
     """
     if prefer_url and is_connectable(prefer_url, timeout=5):
         return prefer_url
-    # 当prefer_url不可用时，尝试自动获取指定网站的免代理地址
+    
     site_name = site_name.lower()
     func_name = f'_get_{site_name}_urls'
     get_funcs = [i for i in dir(sys.modules[__name__]) if i.startswith('_get_')]
@@ -26,10 +27,11 @@ def get_proxy_free_url(site_name: str, prefer_url=None) -> str:
         try:
             urls = get_urls()
             return _choose_one(urls)
-        except:
+        except Exception as e:
+            logging.error(f"Failed to get proxy-free URL for {site_name}: {e}")
             return ''
     else:
-        raise Exception("Dont't know how to get proxy-free url for " + site_name)
+        raise Exception(f"Don't know how to get proxy-free URL for {site_name}")
 
 
 def _choose_one(urls) -> str:
@@ -40,38 +42,72 @@ def _choose_one(urls) -> str:
 
 
 def _get_avsox_urls() -> list:
-    html = get_html('https://tellme.pw/avsox')
-    urls = html.xpath('//h4/strong/a/@href')
-    return urls
+    try:
+        html = get_html('https://tellme.pw/avsox')
+        urls = html.xpath('//h4/strong/a/@href')
+        return urls
+    except Exception as e:
+        logging.error(f"Failed to retrieve URLs from avsox: {e}")
+        return []
 
 
 def _get_javbus_urls() -> list:
-    html = get_html('https://www.javbus.one/')
-    text = html.text_content()
-    urls = re.findall(r'防屏蔽地址：(https://(?:[\d\w][-\d\w]{1,61}[\d\w]\.){1,2}[a-z]{2,})', text, re.I | re.A)
-    return urls
+    try:
+        html = get_html('https://www.javbus.one/')
+        text = html.text_content()
+        urls = re.findall(r'防屏蔽地址：(https://(?:[\d\w][-\d\w]{1,61}[\d\w]\.){1,2}[a-z]{2,})', text, re.I | re.A)
+        return urls
+    except Exception as e:
+        logging.error(f"Failed to retrieve URLs from javbus: {e}")
+        return []
 
 
 def _get_javlib_urls() -> list:
-    html = get_html('https://github.com/javlibcom')
-    text = html.xpath("//div[@class='p-note user-profile-bio mb-3 js-user-profile-bio f4']")[0].text_content()
-    match = re.search(r'[\w\.]+', text, re.A)
-    if match:
-        domain = f'https://www.{match.group(0)}.com'
-        return [domain]
+    try:
+        html = get_html('https://github.com/javlibcom')
+        text = html.xpath("//div[@class='p-note user-profile-bio mb-3 js-user-profile-bio f4']")[0].text_content()
+        match = re.search(r'[\w\.]+', text, re.A)
+        if match:
+            domain = f'https://www.{match.group(0)}.com'
+            return [domain]
+    except Exception as e:
+        logging.error(f"Failed to retrieve URLs from javlib: {e}")
+        return []
 
 
 def _get_javdb_urls() -> list:
-    html = get_html('https://jav523.app')
-    js_links = html.xpath("//script[@src]/@src")
-    for link in js_links:
-        if '/js/index' in link:
-            text = get_resp_text(request_get(link))
-            match = re.search(r'\$officialUrl\s*=\s*"(https://(?:[\d\w][-\d\w]{1,61}[\d\w]\.){1,2}[a-z]{2,})"', text, flags=re.I | re.A)
-            if match:
-                return [match.group(1)]
+    try:
+        html = get_html('https://jav523.app')
+        js_links = html.xpath("//script[@src]/@src")
+        for link in js_links:
+            if '/js/index' in link:
+                text = get_resp_text(request_get(link))
+                match = re.search(r'\$officialUrl\s*=\s*"(https://(?:[\d\w][-\d\w]{1,61}[\d\w]\.){1,2}[a-z]{2,})"', text, flags=re.I | re.A)
+                if match:
+                    return [match.group(1)]
+    except Exception as e:
+        logging.error(f"Failed to retrieve URLs from javdb: {e}")
+        return []
 
 
 if __name__ == "__main__":
-    print('javdb:\t', _get_javdb_urls())
-    print('javlib:\t', _get_javlib_urls())
+    results = []
+    
+    # 获取各网站的免代理地址
+    javdb_urls = _get_javdb_urls()
+    javlib_urls = _get_javlib_urls()
+    
+    # 将结果添加到列表中
+    if javdb_urls:
+        results.append(f'javdb:\t{javdb_urls}')
+    if javlib_urls:
+        results.append(f'javlib:\t{javlib_urls}')
+    
+    # 将结果保存到文件
+    with open('jav.txt', 'w', encoding='utf-8') as f:
+        for line in results:
+            f.write(f"{line}\n")
+    
+    # 打印结果到控制台
+    for line in results:
+        logging.info(line)
