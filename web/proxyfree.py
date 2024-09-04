@@ -10,13 +10,12 @@ try:
     response = requests.get(url)
     response.raise_for_status()  # 确保请求成功
 
-    # 获取当前脚本所在目录
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # 构建响应文件的路径
-    response_file_path = os.path.join(script_dir, 'response.html')
+    # 确保 'web' 目录存在
+    if not os.path.exists('web'):
+        os.makedirs('web')
 
     # 保存网页响应到文件
+    response_file_path = 'web/response.html'
     with open(response_file_path, 'w', encoding='utf-8') as file:
         file.write(response.text)
 
