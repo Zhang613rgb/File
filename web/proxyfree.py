@@ -2,21 +2,30 @@ import os
 import re
 import sys
 import logging
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from web.base import *
+import socket
+import requests
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+def is_connectable(url, timeout=5):
+    try:
+        response = requests.head(url, timeout=timeout)
+        return response.status_code == 200
+    except Exception as e:
+        logging.error(f"Connection to {url} failed: {e}")
+        return False
+
+def get_html(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.text
+    except requests.RequestException as e:
+        logging.error(f"Failed to retrieve HTML from {url}: {e}")
+        return ''
+
 def get_proxy_free_url(site_name: str, prefer_url=None) -> str:
-    """获取指定网站的免代理地址
-    Args:
-        site_name (str): 站点名称
-        prefer_url (str, optional): 优先测试此url是否可用
-    Returns:
-        str: 指定站点的免代理地址（失败时为空字符串）
-    """
-    if prefer_url and is_connectable(prefer_url, timeout=5):
+    if prefer_url and is_connectable(prefer_url):
         return prefer_url
     
     site_name = site_name.lower()
@@ -33,10 +42,9 @@ def get_proxy_free_url(site_name: str, prefer_url=None) -> str:
     else:
         raise Exception(f"Don't know how to get proxy-free URL for {site_name}")
 
-
 def _choose_one(urls) -> str:
     for url in urls:
-        if is_connectable(url, timeout=5):
+        if is_connectable(url):
             return url
     return ''
 
@@ -92,26 +100,17 @@ def _get_javdb_urls() -> list:
 
 if __name__ == "__main__":
     results = []
-    
-    # 获取各网站的免代理地址
     javdb_urls = _get_javdb_urls()
     javlib_urls = _get_javlib_urls()
     
-    # 将结果添加到列表中
     if javdb_urls:
         results.append(f'javdb:\t{javdb_urls}')
     if javlib_urls:
         results.append(f'javlib:\t{javlib_urls}')
     
-    # 将结果保存到文件
     with open('jav.txt', 'w', encoding='utf-8') as f:
         for line in results:
             f.write(f"{line}\n")
     
-    # 打印结果到控制台
     for line in results:
         logging.info(line)
-        
-with open('jav.txt', 'w') as f:
-    f.write('javdb:\t' + str(_get_javdb_urls()) + '\n')
-    f.write('javlib:\t' + str(_get_javlib_urls()) + '\n')
